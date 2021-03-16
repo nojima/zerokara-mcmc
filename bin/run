@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import argparse
+import os
 import os.path as path
 import re
 import shutil
@@ -51,9 +52,11 @@ def compile_source_code(filename, top_dir, additional_options):
         "-fsanitize=undefined",
         "--include-directory", top_dir,
         "--include-directory", path.join(top_dir, "vendor/fmt/include"),
+        "--include-directory", path.join(top_dir, "vendor/matplotlib-cpp"),
+        "--include-directory", "/usr/include/python3.6m",
         "-L{}".format(path.join(top_dir, "vendor/fmt/lib")),
     ] + additional_options
-    libs = ["fmt"]
+    libs = ["fmt", "python3.6m", "pthread", "dl", "util", "m"]
     cmd = [cxx] + flags + [filename] + ["-l{}".format(lib) for lib in libs]
     print(" ".join(cmd), flush=True)
     res = subprocess.run(cmd)
@@ -75,12 +78,16 @@ def run_binary_with_input(input_filename, case_no):
         if case_no is not None and case_no != no+1:
             continue
         print("\n\033[30;47;1m{}\033[m".format(" Case #{} ".format(no + 1)), flush=True)
-        res = subprocess.run(["./a.out"], input=i.encode())
+        env = os.environ.copy()
+        env["ASAN_OPTIONS"] = "detect_leaks=0";
+        res = subprocess.run(["./a.out"], input=i.encode(), env=env)
         if res.returncode != 0:
             sys.exit(1)
 
 def run_binary_without_input():
-    res = subprocess.run(["./a.out"])
+    env = os.environ.copy()
+    env["ASAN_OPTIONS"] = "detect_leaks=0";
+    res = subprocess.run(["./a.out"], env=env)
     if res.returncode != 0:
         sys.exit(1)
 
