@@ -1,0 +1,94 @@
+#!/usr/bin/python3
+import argparse
+import os.path as path
+import re
+import shutil
+import subprocess
+import sys
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem", metavar="PROBLEM")
+    parser.add_argument("case_no", metavar="CASE", type=int, nargs='?')
+    args = parser.parse_args()
+
+    top_dir = path.dirname(path.dirname(path.abspath(__file__)))
+
+    run(args.problem, top_dir, args.case_no)
+
+def run(problem, top_dir, case_no):
+    compile_precompiled_header_file(top_dir)
+    compile_cpp_file(problem, top_dir)
+    run_binary(problem, case_no)
+
+def compile_precompiled_header_file(top_dir):
+    filename = path.join(top_dir, "lib/std.hpp")
+    pch_filename = filename + ".pch"
+    if not path.exists(pch_filename):
+        additional_options = [
+            "-x", "c++-header",
+            "-o", pch_filename,
+        ]
+        compile_source_code(filename, top_dir, additional_options)
+
+def compile_cpp_file(problem, top_dir):
+    additional_options = [
+        "-include-pch", path.join(top_dir, "lib/std.hpp.pch"),
+    ]
+    compile_source_code(problem.upper() + ".cpp", top_dir, additional_options)
+    print("{} \033[30;42;1m{}\033[m".format("Compile:", " OK! "), flush=True)
+
+def compile_source_code(filename, top_dir, additional_options):
+    cxx = detect_compiler()
+    flags = [
+        "-std=c++17",
+        "-g",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsanitize=address",
+        "-fsanitize=undefined",
+        "--include-directory", top_dir,
+        "--include-directory", path.join(top_dir, "ac-library"),
+    ] + additional_options
+    cmd = [cxx] + flags + [filename]
+    print(" ".join(cmd), flush=True)
+    res = subprocess.run(cmd)
+    if res.returncode != 0:
+        sys.exit(1)
+
+def run_binary(problem, case_no):
+    input_filename = problem.upper() + ".in"
+    if path.exists(input_filename):
+        run_binary_with_input(input_filename, case_no)
+    else:
+        run_binary_without_input()
+
+def run_binary_with_input(input_filename, case_no):
+    with open(input_filename) as f:
+        separator = re.compile(r"^----$", re.MULTILINE)
+        inputs = separator.split(f.read())
+    for no, i in enumerate(inputs):
+        if case_no is not None and case_no != no+1:
+            continue
+        print("\n\033[30;47;1m{}\033[m".format(" Case #{} ".format(no + 1)), flush=True)
+        res = subprocess.run(["./a.out"], input=i.encode())
+        if res.returncode != 0:
+            sys.exit(1)
+
+def run_binary_without_input():
+    res = subprocess.run(["./a.out"])
+    if res.returncode != 0:
+        sys.exit(1)
+
+def detect_compiler():
+    candidates = ["clang++-10", "clang++", "g++"]
+    for candidate in candidates:
+        if shutil.which(candidate) is not None:
+            return candidate
+    print("No C++ compilers are available.", file=sys.stderr, flush=True)
+    sys.exit(1)
+
+if __name__ == "__main__":
+    main()
