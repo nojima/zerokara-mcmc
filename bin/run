@@ -8,18 +8,18 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("problem", metavar="PROBLEM")
+    parser.add_argument("filename", metavar="FILE")
     parser.add_argument("case_no", metavar="CASE", type=int, nargs='?')
     args = parser.parse_args()
 
     top_dir = path.dirname(path.dirname(path.abspath(__file__)))
 
-    run(args.problem, top_dir, args.case_no)
+    run(args.filename, top_dir, args.case_no)
 
-def run(problem, top_dir, case_no):
+def run(filename, top_dir, case_no):
     compile_precompiled_header_file(top_dir)
-    compile_cpp_file(problem, top_dir)
-    run_binary(problem, case_no)
+    compile_cpp_file(filename, top_dir)
+    run_binary(filename, case_no)
 
 def compile_precompiled_header_file(top_dir):
     filename = path.join(top_dir, "lib/std.hpp")
@@ -31,11 +31,11 @@ def compile_precompiled_header_file(top_dir):
         ]
         compile_source_code(filename, top_dir, additional_options)
 
-def compile_cpp_file(problem, top_dir):
+def compile_cpp_file(filename, top_dir):
     additional_options = [
         "-include-pch", path.join(top_dir, "lib/std.hpp.pch"),
     ]
-    compile_source_code(problem.upper() + ".cpp", top_dir, additional_options)
+    compile_source_code(filename, top_dir, additional_options)
     print("{} \033[30;42;1m{}\033[m".format("Compile:", " OK! "), flush=True)
 
 def compile_source_code(filename, top_dir, additional_options):
@@ -50,16 +50,18 @@ def compile_source_code(filename, top_dir, additional_options):
         "-fsanitize=address",
         "-fsanitize=undefined",
         "--include-directory", top_dir,
-        "--include-directory", path.join(top_dir, "ac-library"),
+        "--include-directory", path.join(top_dir, "vendor/fmt/include"),
+        "-L{}".format(path.join(top_dir, "vendor/fmt/lib")),
     ] + additional_options
-    cmd = [cxx] + flags + [filename]
+    libs = ["fmt"]
+    cmd = [cxx] + flags + [filename] + ["-l{}".format(lib) for lib in libs]
     print(" ".join(cmd), flush=True)
     res = subprocess.run(cmd)
     if res.returncode != 0:
         sys.exit(1)
 
-def run_binary(problem, case_no):
-    input_filename = problem.upper() + ".in"
+def run_binary(filename, case_no):
+    input_filename = filename + ".in"
     if path.exists(input_filename):
         run_binary_with_input(input_filename, case_no)
     else:
