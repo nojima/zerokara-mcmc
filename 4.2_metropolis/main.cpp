@@ -16,8 +16,8 @@ inline double noise() noexcept {
 template <class Action, class StepWidth>
 vector<double> metropolis(
     int n_iters,
-    Action action,
-    StepWidth step_width
+    Action action,       // fn(double x) -> double
+    StepWidth step_width // fn(int iter) -> double
 ) {
     vector<double> result;
 
