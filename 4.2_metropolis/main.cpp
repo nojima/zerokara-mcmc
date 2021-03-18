@@ -13,11 +13,11 @@ inline double noise() noexcept {
     return rng.next_double() * 2.0 - 1.0;
 }
 
-template <class Action>
+template <class Action, class StepWidth>
 vector<double> metropolis(
     int n_iters,
-    double step_size,
-    Action action
+    Action action,
+    StepWidth step_width
 ) {
     vector<double> result;
 
@@ -26,7 +26,7 @@ vector<double> metropolis(
 
     for(int iter = 1; iter <= n_iters; ++iter) {
         // step1: ⊿x をランダムに選ぶ
-        double dx = noise() * step_size;
+        double dx = noise() * step_width(iter);
         double x_candidate = x + dx;
 
         // step2: メトロポリステスト
@@ -51,7 +51,7 @@ vector<double> metropolis(
 }
 
 void plot(const vector<double>& result) {
-    plt::hist(result, 100);
+    plt::hist(result, 1000);
     plt::save("./plot.png");
 }
 
@@ -60,19 +60,29 @@ inline double sq(double x) noexcept {
 }
 
 int main() {
+    /*
     auto action = [](double x) {
         return -log( exp(-sq(x - 3) * 0.5) + exp(-sq(x + 3) * 0.5) );
     };
-    /*
+    auto step_width = [](int) {
+        return 2.0;
+    };
+    */
     auto action = [](double x) {
         return -log( exp(-sq(x) * 0.5) + exp(-sq(x - 100) * 0.5) );
     };
-    */
+    auto step_width = [](int iter) {
+        if(iter % 2 == 0) {
+            return 1.0;
+        } else {
+            return 100.0;
+        }
+    };
 
     auto result = metropolis(
-        1'000'000,     // n_iters
-        2.0,           // step_size
-        action
+        1'000'000, // n_iters
+        action,
+        step_width
     );
     plot(result);
 }
