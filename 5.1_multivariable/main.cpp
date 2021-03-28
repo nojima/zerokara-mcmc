@@ -14,44 +14,55 @@ inline double noise() noexcept {
 }
 
 template <class Action, class StepWidth>
-vector<double> metropolis(
+vector<pair<double, double>> metropolis(
     int n_iters,
-    Action action,       // fn(double x) -> double
+    Action action,       // fn(double x, double y) -> double
     StepWidth step_width // fn(int iter) -> double
 ) {
-    vector<double> result;
+    vector<pair<double, double>> result;
 
     double x = 0;
+    double y = 0;
     int n_accept = 0;
 
     for(int iter = 1; iter <= n_iters; ++iter) {
-        // step1: ⊿x をランダムに選ぶ
+        // step1: ⊿x, ⊿y をランダムに選ぶ
         double dx = noise() * step_width(iter);
+        double dy = noise() * step_width(iter);
         double x_candidate = x + dx;
+        double y_candidate = y + dy;
 
         // step2: メトロポリステスト
-        double prob_accept = min(1.0, exp(action(x) - action(x_candidate)));
+        double prob_accept = min(1.0, exp(action(x, y) - action(x_candidate, y_candidate)));
         if(rng.next_double() < prob_accept) {
             // 受理
             x = x_candidate;
+            y = y_candidate;
             ++n_accept;
         } else {
             // 棄却
         }
 
-        if(iter % 1000 == 0) {
-            double r_accept = (double)n_accept / iter;
-            fmt::print("{:8}: {:f} {:f}\n", iter, x, r_accept);
+        if(iter % 100 == 0) {
+            result.push_back({x, y});
         }
 
-        result.emplace_back(x);
+        if(iter % 1000 == 0) {
+            double r_accept = (double)n_accept / iter;
+            fmt::print("{:8}: ({:f}, {:f}) {:f}\n", iter, x, y, r_accept);
+        }
     }
 
     return result;
 }
 
-void plot(const vector<double>& result) {
-    plt::hist(result, 1000);
+void plot(const vector<pair<double, double>>& result) {
+    vector<double> xs, ys;
+    for (auto [x, y] : result) {
+        xs.emplace_back(x);
+        ys.emplace_back(y);
+    }
+    plt::scatter(xs, ys, 1.0);
     plt::save("./plot.png");
 }
 
@@ -60,11 +71,11 @@ inline double sq(double x) noexcept {
 }
 
 int main() {
-    auto action = [](double x) {
-        return -log( exp(-sq(x - 3) * 0.5) + exp(-sq(x + 3) * 0.5) );
+    auto action = [](double x, double y) {
+        return 0.5 * (sq(x) + sq(y) + x*y);
     };
     auto step_width = [](int) {
-        return 2.0;
+        return 0.5;
     };
     /*
     auto action = [](double x) {
